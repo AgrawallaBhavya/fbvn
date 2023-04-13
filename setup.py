@@ -21,7 +21,7 @@ setup(
         "scipy",
         "torch>=1.5.1",
         "tqdm",
-        #"params_proto",
+        "params_proto",
         "termcolor",
         "jaynes",
         "requests",
