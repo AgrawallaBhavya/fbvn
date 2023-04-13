@@ -1,0 +1,55 @@
+version: 0
+run:
+  mounts: # mount configurations Available keys: NOW, UUID,
+    - !mounts.SSHCode &code_mount
+      local_path: .
+      # host_path: $JYNMNT/latent-planning/latent-planning
+      local_tar: /tmp/{now:%Y-%m-%d}/{now:%H%M%S.%f}-jaynes-demo.tar
+      host_path: "{secret.JYNS_SLURM_DIR}/jaynes-demo/{now:%Y-%m-%d}/{now:%H%M%S.%f}-jaynes_demo"
+      remote_tar: "{secret.JYNS_SLURM_DIR}/jaynes-demo/{now:%Y-%m-%d}/{now:%H%M%S.%f}-jaynes_demo.tar"
+      pypath: true
+      excludes: >-
+        --exclude='data' --exclude='samples' --exclude='images' --exclude='videos'
+        --exclude='figures' --exclude='results' --exclude='analysis' --exclude='*.ipynb'
+        --exclude='*__pycache__' --exclude='*.git' --exclude='*.png' --exclude='*.gif'
+        --exclude='*.mp4' --exclude='*.idea' --exclude='*.egg-info' --exclude='*.pkl'
+        --exclude='*.log*'
+      compress: true
+  runner: !runners.Slurm &slurm
+    envs: >-
+      LC_CTYPE=en_US.UTF-8 LANG=en_US.UTF-8 LANGUAGE=en_US
+    setup: |
+      source /etc/profile.d/modules.sh
+      source $HOME/.bashrc
+      module load cuda/11.3
+      module load anaconda/2022b
+      make &
+      sleep 0.1;
+    startup: >-
+      make --directory $HOME worker;
+      sleep 0.1;
+      . $HOME/.worker_export;
+      pip install jaynes ml-logger -q;
+    pypath: >-
+      {mounts[0].host_path} http_proxy=http://localhost:$(cat $HOME/WORKER_PORT) https_proxy=http://localhost:$(cat $HOME/WORKER_PORT)
+    work_dir: "{mounts[0].host_path}"
+    # partition: normal # not clear what the partition is like
+    time_limit: "0:0:20"
+    n_cpu: 2
+    n_gpu: 0
+    interactive: true
+#    post_script: >-
+#      make --directory $HOME cleanup;
+  launch: !ENV
+    type: ssh
+    ip: "{secret.JYNS_SLURM_HOST}"
+    username: "{secret.JYNS_USERNAME}"
+    pem: "{secret.JYNS_SLURM_PEM}"
+
+#      export http_proxy=http://localhost:4000;
+#      export https_proxy=http://localhost:4000;
+#      echo $http_proxy;
+#    #      export ML_PORT=$RANDOM
+#    #      export ML_LOGGER_ROOT=https://escher.csail.mit.edu:$ML_PORT
+#    startup: >-
+#    #      ssh -L $ML_PORT:escher.csail.mit.edu:8080 login-2 -fN;
